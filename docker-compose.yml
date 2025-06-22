@@ -1,0 +1,67 @@
+services:
+
+  mcp-multi:
+    build: ./mcp-server
+    volumes:
+      - mcp_logs:/var/log/supervisor
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    ports:
+      - "3000:8080"
+    environment:
+      # Ollama integration
+      - OLLAMA_BASE_URL=http://ollama:11434
+
+      # OpenAI API integration
+      - ENABLE_OPENAI_API=true
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+
+      # Web search integration
+      - ENABLE_WEB_SEARCH=true
+      - WEB_SEARCH_ENGINE=google_pse
+      - GOOGLE_PSE_API_KEY=${GOOGLE_PSE_API_KEY}
+      - GOOGLE_PSE_ENGINE_ID=${GOOGLE_PSE_ENGINE_ID}
+      
+    volumes:
+      - open_webui_data:/app/backend/data
+    depends_on:
+      - ollama
+      - mcp-multi
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    environment:
+      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
+      - NGROK_REGION=br
+    command: http open-webui:8080
+    depends_on:
+      - open-webui
+
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=3600 # verify every hour
+
+
+volumes:
+  ollama_data:
+  open_webui_data:
+  mcp_logs:
