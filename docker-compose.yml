@@ -8,6 +8,7 @@ services:
 
   ollama:
     image: ollama/ollama:latest
+    restart: unless-stopped
     volumes:
       - ollama_data:/root/.ollama
     deploy:
@@ -21,6 +22,7 @@ services:
 
   open-webui:
     image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
     ports:
       - "3000:8080"
     environment:
@@ -43,8 +45,28 @@ services:
       - ollama
       - mcp-multi
 
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_EDITOR_BASE_URL=http://localhost:5678/
+      - N8N_API_BASE_URL=http://localhost:5678/
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - open-webui
+
   ngrok:
     image: ngrok/ngrok:latest
+    restart: unless-stopped
     environment:
       - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
       - NGROK_REGION=br
@@ -54,6 +76,7 @@ services:
 
   watchtower:
     image: containrrr/watchtower
+    restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
@@ -65,3 +88,4 @@ volumes:
   ollama_data:
   open_webui_data:
   mcp_logs:
+  n8n_data:
